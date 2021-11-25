@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Actividad Integradora</title>
+    <title>Document</title>
     <style>
         html, body
         {
@@ -46,16 +46,7 @@
             scene.add(scenary);
 
             // CAMERA (PERSPECTIVE)
-            const fov = 60;    // Field ov view
-            const aspect = window.innerWidth / window.innerHeight;
-            const near = 0.01;
-            const far = 10000.0;
-            camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-            camera.position.set(-100, 100, 300);
-            // CAMERA CONTROLS
-            orbitControls = new OrbitControls(camera, renderer.domElement);
-            //orbitControls.target = model.position;
-            orbitControls.update();
+            camera = new Camera();
 
             // SETUP STATS
             stats = new Stats();
@@ -85,8 +76,26 @@
                 
             guiBuildMenu.open();
 
-            
-
+            // CAMERA-MENU
+            const guiCameraMenu = gui.addFolder("Camera Menu");
+            guiCameraMenu.add(camera, "perspectiveView").name("Perspective View").listen().onChange(function() {
+                camera.setPerspectiveView();
+            });
+            guiCameraMenu.add(camera, "topView").name("Top View").listen().onChange(function() {
+                camera.setTopView();
+            });
+            guiCameraMenu.add(camera, "sideView").name("Side View").listen().onChange(function() {
+                camera.setSideView();
+            });
+            /*
+            guiCameraMenu.add(camera, "inModelView").name("In Model View").listen().onChange(function(model) {
+                camera.setInModelView(model);
+            });
+            */
+            guiCameraMenu.add(camera, "doAutoRotate").name("Auto Rotate").listen().onChange(function(value) {
+                camera.setAutoRotate(value);
+            });
+            guiCameraMenu.open();
 
             // READ JSON DATA
             readTextFile("./data.json", function(text) {
@@ -108,7 +117,7 @@
         }
 
         function updateScene() {
-           if(dataReady) {
+            if(dataReady) {
                 if(frameCounter < data.frames.length) {
                     for(let i = 0; i < data.frames[frameCounter].cars.length; i++) {
                         const id = data.frames[frameCounter].cars[i].id;
@@ -127,9 +136,20 @@
                             car.setDirection(dir);
                         }
                     }
+
+                    if(camera.orbitControls.autoRotate) {
+                        camera.orbitControls.update();
+                    }
+
+                    /*
+                    if(camera.inModelView) {
+                        camera.setInModelView(car);
+                    }
+                    */
+
                     frameCounter++;
-               }
-           }
+                }
+            }
         }
 
         function readTextFile(file, callback) {
@@ -152,6 +172,75 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);            
         }, false);
+
+        class Camera extends THREE.PerspectiveCamera {
+            constructor(fov = 70, aspect = window.innerWidth / window.innerHeight, near = 0.01, far = 10000.0) {
+                super(fov, aspect, near, far);
+
+                this.perspectiveView = false;
+                this.topView = false;
+                this.sideView = false;
+                //this.inModelView = false;
+                this.doAutoRotate = false;
+
+                // CAMERA CONTROLS
+                this.orbitControls = new OrbitControls(this, renderer.domElement);
+                this.orbitControls.update();
+            }
+            setPerspectiveView() {
+                this.position.set(-100, 100, 300);
+                this.orbitControls.target = new THREE.Vector3(0, 0, 0);
+                this.up.set(0, 1, 0);
+                this.orbitControls.update();
+
+                // DISABLE THE OTHER CAMERAS
+                this.topView = false;
+                this.frontView = false;
+                this.sideView = false;
+                this.inModelView = false;
+            }
+            setTopView() {
+                this.position.set(0, 425, 0);
+                this.orbitControls.target = new THREE.Vector3(0, 0, 0);
+                this.up.set(-1, 0, 0);
+                this.orbitControls.update();
+
+                // DISABLE THE OTHER CAMERAS
+                this.perspectiveView = false;
+                this.frontView = false;
+                this.sideView = false;
+                this.inModelView = false;
+            }
+            setSideView() {
+                this.position.set(240, 1.8, 0);
+                this.orbitControls.target = new THREE.Vector3(0, 0, 0);
+                this.up.set(0, 1, 0);
+                this.orbitControls.update();
+
+                // DISABLE THE OTHER CAMERAS
+                this.perspectiveView = false;
+                this.topView = false;
+                this.frontView = false;
+                this.inModelView = false;
+            }
+            /*
+            setInModelView(model) {
+                this.position.set(model.position.x - 0.5, model.position.y + 1.7, model.position.z);
+                this.orbitControls.target = new THREE.Vector3(model.position.x - 0.5, model.position.y + 1.7, model.position.z);
+                this.up.set(0, 1, 0);
+                this.orbitControls.update();
+
+                // DISABLE THE OTHER CAMERAS
+                this.perspectiveView = false;
+                this.topView = false;
+                this.frontView = false;
+                this.sideView = false;
+            }
+            */
+            setAutoRotate(value) {
+                this.orbitControls.autoRotate = value;
+            }           
+        }
 
         class Axes extends THREE.AxesHelper {
             constructor(size = 10, visible = true) {
