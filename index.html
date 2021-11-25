@@ -25,7 +25,7 @@
 
         "use strict";
 
-        let renderer, scene, camera, orbitControls, stats, gui, data, dataReady = false, frameCounter = 0;
+        let renderer, scene, camera, orbitControls, stats, gui, data, dataReady = false, frameCounter = 0, setVisible = false;
         
         function init(event) {
             // RENDERER ENGINE
@@ -63,6 +63,8 @@
             document.body.appendChild(stats.dom);
 
             // GUI
+            
+            
             gui = new dat.GUI();
             // SCENE-MENU
             const guiSceneMenu = gui.addFolder("Scene Menu");
@@ -71,9 +73,25 @@
             });
             guiSceneMenu.open();
 
+            const guiBuildMenu = gui.addFolder("Building Menu");
+                
+            guiBuildMenu.add(scenary, "wireframeBool").setValue(scenary.wireframeBool).name("Wireframe").listen().onChange(function(value) {
+                scenary.setWireframeBuild(value);
+            });
+
+            guiBuildMenu.add(scenary, "textureBool").setValue(scenary.textureBool).name("Texture").listen().onChange(function(value) {
+                scenary.setTextureBuild(value);
+            });
+                
+            guiBuildMenu.open();
+
+            
+
+
             // READ JSON DATA
-            readTextFile("./simul_data.json", function(text) {
+            readTextFile("./data.json", function(text) {
                 data = JSON.parse(text);
+                console.log(data);
                 dataReady = true;
             });
 
@@ -370,6 +388,13 @@
                 this.theta = theta;
                 this.rotation.y = this.theta * Math.PI / 180;
                 this.position.set(x, 0, z);
+
+                const trafficLightTexture = new THREE.TextureLoader().load("./assets/img/road.jpg");
+                trafficLightTexture .wrapS = THREE.RepeatWrapping;
+                trafficLightTexture.wrapT = THREE.RepeatWrapping;
+                trafficLightTexture.repeat.set(1,1);
+                const trafficLightmaterial = new THREE.MeshBasicMaterial({map: trafficLightTexture, side:THREE.DoubleSide});
+
                 this.color = 0xcc0000;
                 this.wireColor = 0xffffff;
                 this.doubleSide = false;
@@ -380,15 +405,21 @@
             loadOBJModel(objFileName) {
                 // instantiate a loader
                 const loader = new OBJLoader();
+                const trafficLightTexture = new THREE.TextureLoader().load("./assets/img/trafficlight.jpg");
                 // load a resource
                 const model = this;
                 loader.load(objFileName,
                             // called when resource is loaded
                             function (object) { 
                                 // SOLID
-                                object.traverse(function(child) {
+                                /*object.traverse(function(child) {
                                     if (child.isMesh) {
                                         child.material = new THREE.MeshBasicMaterial({color: model.color});
+                                    }
+                                });*/
+                                object.traverse(function(child) {
+                                    if (child.isMesh) {
+                                        child.material = new THREE.MeshBasicMaterial({map: trafficLightTexture, side:THREE.DoubleSide});
                                     }
                                 });
                                 model.solid = object;
@@ -430,6 +461,7 @@
                                 guiTrafficLightMenu.add(model, "rotate").setValue(model.rotate).name("Rotate").listen().onChange(function(value) {
                                                                             
                                 });
+
                         },
                         // called when loading is in progresses
                         function (xhr) {
@@ -516,15 +548,17 @@
 
                 this.solid = new THREE.Mesh(geometry, this.materials);
                 //const material = new THREE.MeshBasicMaterial({color});
-                //const materialWire = new THREE.MeshBasicMaterial({wireframe: true, color: wireColor});
+                const materialWire = new THREE.MeshBasicMaterial({wireframe: true, color: wireColor});
                 
-                //this.wire = new THREE.Mesh(geometry, materialWire);
+                this.wire = new THREE.Mesh(geometry, materialWire);
                 // CHILDREN
                 this.add(this.solid);
-                //this.add(this.wire);
+                this.add(this.wire);
+
+                
             }
             setWireframe(value = true) {
-                this.solid.setVisible(value);
+                this.wire.setVisible(value);
             }
             setColor(hexColor) {
                 this.color = hexColor;
@@ -547,6 +581,10 @@
                 const bBox = this.solid.geometry.boundingBox;
                 this.position.y = -bBox.min.y;
             }
+
+           
+
+
         }
 
         class Scenary extends THREE.Group {
@@ -556,6 +594,9 @@
                 this.floor = new Floor(size);
                 this.buildings = [];
                 this.trafficLights = [];
+                this.wireframeBool = true;
+                this.textureBool = true;
+                
                 //SE
                 this.buildings.push(new Building(35, 35, 50, 50, 50));
                 this.buildings.push(new Building(35, 90, 50, 50, 10));
@@ -620,6 +661,21 @@
                 this.add(this.floor);
                 for(let i = 0; i < this.buildings.length; i++) {
                     this.add(this.buildings[i]);
+                }
+
+            }
+            setWireframeBuild(value) {
+                this.wireframeBool = value
+
+                for(let i = 0; i < this.buildings.length; i++) {
+                    this.buildings[i].wire.visible = value;
+                }
+            }
+            setTextureBuild(value) {
+                this.textureBool = value
+
+                for(let i = 0; i < this.buildings.length; i++) {
+                    this.buildings[i].solid.visible = value;
                 }
             }
         }
